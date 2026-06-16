@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>МОДУЛЬ 3</title>
+<style>
+body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.7; color: #222; }
+h1 { margin-top: 2.5rem; font-size: 1.4rem; }
+h2 { margin-top: 1.8rem; font-size: 1.15rem; }
+h3 { margin-top: 1.2rem; font-size: 1rem; }
+p { margin: 0.25rem 0; }
+code { font-family: monospace; font-size: 0.9em; background: #f0f0f0; padding: 0.1em 0.35em; border-radius: 3px; }
+.screenshot { color: #888; font-size: 0.85em; margin: 0.2rem 0; }
+</style>
+</head>
+<body>
+<h1>МОДУЛЬ 3. Эксплуатация объектов сетевой инфраструктуры</h1>
+<p>Задание: Необходимо разработать и настроить инфраструктуру информационно-коммуникационной системы согласно предложенной топологии. Задание Модуля 3 содержит миграцию пользователей, развёртывание и настройку центра сертификации, выдачу сертификатов веб серверам для шифрования трафика, настройку шифрованного туннеля, настройку межсетевого экрана, принт-сервера, сервера логирования и мониторинга, автоматизации на основе инфраструктуры открытых ключей, настройку защиты протокола SSH от перебора, настройку программного обеспечения для создания архивных копий.</p>
+<h2>1. Импорт пользователей в домен</h2>
+<p>Задание: Выполните импорт пользователей в домен au-team.irpo: в качестве файла источника выберите файл users.csv располагающийся в образе Additional.iso, пользователи должны быть импортированы со своими паролями и другими атрибутами, убедитесь что импортированные пользователи могут войти на машину HQ-CLI.</p>
+<p class="screenshot">[Нужен скриншот: успешного импорта пользователей из users.csv — проверка через samba-tool user list]</p>
+<h2>2. Центр сертификации</h2>
+<p>Задание: Выполните настройку центра сертификации на базе HQ-SRV: необходимо использовать отечественные алгоритмы шифрования, сертификаты выдаются на 30 дней, обеспечьте доверие сертификату для HQ-CLI, выдайте сертификаты веб серверам, перенастройте ранее настроенный реверсивный прокси nginx на протокол https, при обращении к веб серверам https://web.au-team.irpo и https://docker.au-team.irpo у браузера клиента не должно возникать предупреждений.</p>
+<p class="screenshot">[Нужен скриншот: работы центра сертификации (openssl x509 -in /path/to/cert.crt -text -noout)]</p>
+<p class="screenshot">[Нужен скриншот: браузера без предупреждений при открытии https://web.au-team.irpo]</p>
+<p class="screenshot">[Нужен скриншот: браузера без предупреждений при открытии https://docker.au-team.irpo]</p>
+<h2>3. Защищенный туннель между HQ-RTR и BR-RTR</h2>
+<p>Задание: Перенастройте IP-туннель с базового до уровня туннеля, обеспечивающего шифрование трафика. Настройте защищенный туннель между HQ-RTR и BR-RTR, внесите необходимые изменения в конфигурацию динамической маршрутизации, протокол динамической маршрутизации должен возобновить работу после перенастройки туннеля. Выбранное программное обеспечение, обоснование его выбора и его основные параметры, изменения в конфигурации динамической маршрутизации отметьте в отчёте.</p>
+<p class="screenshot">[Нужен скриншот: работы защищенного туннеля (ip addr show tun0 или аналог)]</p>
+<p class="screenshot">[Нужен скриншот: восстановления OSPF-соседства после перенастройки туннеля (show ip ospf neighbor)]</p>
+<h2>4. Межсетевой экран</h2>
+<p>Задание: Настройте межсетевой экран на маршрутизаторах HQ-RTR и BR-RTR на сеть в сторону ISP: обеспечьте работу протоколов http, https, dns, ntp, icmp или дополнительных нужных протоколов, запретите остальные подключения из сети Интернет во внутреннюю сеть.</p>
+<p>(В гайде не рассмотрено)</p>
+<p class="screenshot">[Нужен скриншот: правил межсетевого экрана (iptables -L -n -v) на HQ-RTR и BR-RTR]</p>
+<p class="screenshot">[Нужен скриншот: проверки ping 8.8.8.8 с HQ-RTR]</p>
+<h2>5. Принт-сервер CUPS</h2>
+<p>Задание: Настройте принт-сервер cups на сервере HQ-SRV: опубликуйте виртуальный pdf-принтер, на клиенте HQ-CLI подключите виртуальный принтер как принтер по умолчанию.</p>
+<p>Принт-сервер CUPS на HQ-SRV:</p>
+<p><code>dnf install -y cups cups-pdf</code></p>
+<p>В /etc/cups/cupsd.conf меняем Listen localhost:631 на Port 631</p>
+<p class="screenshot">[Нужен скриншот: изменения Listen на Port 631 в /etc/cups/cupsd.conf]</p>
+<p>В конце файла добавляем доступ:</p>
+<p>&lt;Location /&gt;
+  Order allow,deny
+  Allow 192.168.100.0/27
+  Allow 192.168.200.0/27
+  Allow 127.0.0.1
+&lt;/Location&gt;</p>
+<p class="screenshot">[Нужен скриншот: добавленных разрешений в /etc/cups/cupsd.conf]</p>
+<p><code>systemctl enable --now cups</code></p>
+<p><code>systemctl restart cups</code></p>
+<p class="screenshot">[Нужен скриншот: запущенной службы cups (systemctl status cups)]</p>
+<p>HQ-CLI — подключить PDF-принтер:</p>
+<p><code>dnf install -y cups-client</code></p>
+<p><code>lpadmin -p PDF-HQ -E -v ipp://192.168.100.2:631/printers/PDF -m everywhere</code></p>
+<p><code>lpadmin -d PDF-HQ</code></p>
+<p>lpstat -d</p>
+<p class="screenshot">[Нужен скриншот: HQ-CLI: lpstat -d — показывает PDF-HQ как принтер по умолчанию]</p>
+<h2>6. Логирование при помощи rsyslog</h2>
+<p>Задание: Реализуйте логирование при помощи rsyslog на устройствах HQ-RTR, BR-RTR, BR-SRV: сервер сбора логов расположен на HQ-SRV, убедитесь что сервер не является клиентом самому себе, приоритет сообщений должен быть не ниже warning, все журналы должны находиться в директории /opt, для каждого устройства должна выделяться своя поддиректория которая совпадает с именем машины. Реализуйте ротацию собранных логов на сервере HQ-SRV: ротируются все логи находящиеся в директории и поддиректориях /opt, ротация производится один раз в неделю, логи необходимо сжимать, минимальный размер логов для ротации — 10МБ.</p>
+<p>HQ-SRV — сервер логов:</p>
+<p><code>dnf install -y rsyslog</code></p>
+<p>Убираем комментарии (#) перед этими строками в /etc/rsyslog.conf:</p>
+<p>#module(load=&quot;imudp&quot;)</p>
+<p>#input(type=&quot;imudp&quot; port=&quot;514&quot;)</p>
+<p>#module(load=&quot;imtcp&quot;)</p>
+<p>#input(type=&quot;imtcp&quot; port=&quot;514&quot;)</p>
+<p class="screenshot">[Нужен скриншот: раскомментированных модулей imudp и imtcp в /etc/rsyslog.conf]</p>
+<p>В конце файла указываем путь для сохранения логов:</p>
+<p>$template RemoteLogs,&quot;/opt/%HOSTNAME%/%PROGRAMNAME%.log&quot;
+*.warning ?RemoteLogs</p>
+<p class="screenshot">[Нужен скриншот: добавленного шаблона RemoteLogs в /etc/rsyslog.conf]</p>
+<p><code>mkdir -p /opt</code></p>
+<p><code>systemctl restart rsyslog</code></p>
+<p class="screenshot">[Нужен скриншот: перезапущенного rsyslog (systemctl status rsyslog)]</p>
+<p>Клиенты rsyslog (HQ-RTR, BR-RTR, BR-SRV):</p>
+<p><code>dnf install -y rsyslog</code></p>
+<p><code>nano /etc/rsyslog.conf</code></p>
+<p>*.warning @@192.168.100.2:514</p>
+<p class="screenshot">[Нужен скриншот: конфигурации клиента rsyslog (*.warning @@192.168.100.2:514)]</p>
+<p><code>systemctl restart rsyslog</code></p>
+<p>На HQ-SRV не должно быть строки с @@192.168.100.2:514, потому что в задании указано что сервер не должен сам себе отправлять логи.</p>
+<p>Ротация логов на HQ-SRV:</p>
+<p><code>nano /etc/logrotate.d/opt-logs</code></p>
+<p><code>/opt/*/*.log {
+  weekly
+  rotate 4
+  compress
+  missingok
+  notifempty
+  minsize 10M
+  sharedscripts
+  postrotate
+    /bin/kill -HUP `cat /var/run/syslogd.pid 2&gt;/dev/null` 2&gt;/dev/null || true
+  endscript
+}</code></p>
+<p class="screenshot">[Нужен скриншот: HQ-SRV: ls /opt/ — папки hq-rtr, br-rtr, br-srv с лог-файлами]</p>
+<h2>7. Мониторинг устройств</h2>
+<p>Задание: На сервере HQ-SRV реализуйте мониторинг устройств с помощью открытого программного обеспечения: обеспечьте доступность по URL http://mon.au-team.irpo для сетей офиса HQ, внесите изменения в инфраструктуру разрешения доменных имён, мониторить нужно устройства HQ-SRV и BR-SRV, в мониторинге должны визуально отображаться нагрузка на ЦП, объем занятой ОП и основного накопителя, логин и пароль для службы мониторинга admin/P@ssw0rd, организуйте доступ к мониторингу для HQ-CLI без внешнего доступа. Выбор программного обеспечения, основание выбора и основные параметры с указанием порта, на котором работает мониторинг, отметьте в отчёте.</p>
+<p class="screenshot">[Нужен скриншот: веб-интерфейса мониторинга по адресу http://mon.au-team.irpo — видны графики CPU, RAM, диска]</p>
+<p class="screenshot">[Нужен скриншот: страницы входа в мониторинг с логином/паролем admin/P@ssw0rd]</p>
+<h2>8. Инвентаризация машин через Ansible</h2>
+<p>Задание: Реализуйте механизм инвентаризации машин HQ-SRV и HQ-CLI через Ansible на BR-SRV: плейбук должен собирать информацию о рабочих местах (имя компьютера, IP-адрес), плейбук должен быть размещен в директории /etc/ansible, отчёты в поддиректории PC-INFO в формате .yml, файлы должны называется именем компьютера который был инвентаризирован, файл плейбука располагается в образе Additional.iso в директории playbook.</p>
+<p class="screenshot">[Нужен скриншот: файлов инвентаризации в /etc/ansible/PC-INFO/ (*.yml)]</p>
+<p class="screenshot">[Нужен скриншот: выполнения ansible-playbook и содержимого отчётов]</p>
+<h2>9. Защита SSH с помощью fail2ban</h2>
+<p>Задание: На HQ-SRV настройте программное обеспечение fail2ban для защиты SSH: укажите порт SSH, при 3 неуспешных авторизациях адрес атакующего попадает в бан, бан производится на 1 минуту.</p>
+<p>Fail2ban на HQ-SRV:</p>
+<p><code>dnf install -y fail2ban</code></p>
+<p class="screenshot">[Нужен скриншот: установленного пакета fail2ban]</p>
+<p><code>nano /etc/fail2ban/jail.d/ssh.conf</code></p>
+<p>[sshd]
+enabled = true
+port = 2026
+logpath = /var/log/secure
+maxretry = 3
+bantime = 60
+findtime = 300</p>
+<p class="screenshot">[Нужен скриншот: конфигурации /etc/fail2ban/jail.d/ssh.conf с параметрами]</p>
+<p><code>systemctl enable --now fail2ban</code></p>
+<p><code>fail2ban-client status sshd</code></p>
+<p class="screenshot">[Нужен скриншот: статуса fail2ban (fail2ban-client status sshd) — показывает текущие баны]</p>
+<p class="screenshot">[Нужен скриншот: проверки бана fail2ban после 3 неудачных попыток входа (fail2ban-client status sshd)]</p>
+<h2>10. Резервное копирование</h2>
+<p>Задание: Настройка резервного копирования директории сервера HQ-SRV: на HQ-SRV развернуть программное обеспечение для резервного копирования и восстановления данных с защитой от вирусов-шифровальщиков (рекомендуется Кибер Бэкап версии 17.4 или аналог), настройте организацию irpo, настройте пользователя с правами администратора на сервере HQ-SRV (irpoadmin/P@ssw0rd), установите на HQ-CLI агент с функциями узла хранилища и подключите его к серверу управления, на узле хранилища HQ-CLI создайте директорию /backup, создайте два плана резервного копирования (директории /etc и базы данных webdb), выполните резервное копирование.</p>
+<p class="screenshot">[Нужен скриншот: панели управления Кибер Бэкап с настроенной организацией irpo]</p>
+<p class="screenshot">[Нужен скриншот: плана резервного копирования директории /etc — статус &quot;Выполнено&quot;]</p>
+<p class="screenshot">[Нужен скриншот: плана резервного копирования базы данных webdb — статус &quot;Выполнено&quot;]</p>
+<p class="screenshot">[Нужен скриншот: директории /backup на HQ-CLI с созданными резервными копиями]</p>
+</body>
+</html>
